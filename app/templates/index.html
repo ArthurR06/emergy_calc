@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EmergyCalc</title>
+<link rel="stylesheet" href="/static/styles.css?v=10" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero">
+        <div class="hero-badge">APS • Engenharia de Software</div>
+        <div class="hero-content">
+          <div>
+            <h1>EmergyCalc</h1>
+            <p>
+              Sistema web para cadastro de processos, fluxos de inventário e cálculo emergético por UEV.
+            </p>
+          </div>
+          <div class="hero-stats">
+            <div class="stat-card">
+              <span class="stat-label">Fórmula</span>
+              <strong>Quantidade × UEV</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Classificação</span>
+              <strong>R • N • F</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">Persistência</span>
+              <strong>SQLite</strong>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="layout">
+        <section class="panel panel-form">  
+          <div class="section-heading">
+            <span class="section-kicker">Cadastro</span>
+            <h2>Processos</h2>
+            <p>Crie e edite processos do sistema emergético.</p>
+          </div>
+
+          <form id="process-form" class="stack-form">
+            <input type="hidden" id="process-id" />
+
+            <div class="field">
+              <label for="process-name">Nome do processo</label>
+              <input id="process-name" placeholder="Ex.: Produção de biomassa" required />
+            </div>
+
+            <div class="field-grid two-cols">
+              <div class="field">
+                <label for="process-category">Categoria</label>
+                <input id="process-category" value="general" required />
+              </div>
+              <div class="field">
+                <label>Status</label>
+                <div class="pill">Ativo para cálculo</div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="process-description">Descrição</label>
+              <textarea id="process-description" placeholder="Descreva o objetivo do processo"></textarea>
+            </div>
+
+            <div class="actions split-actions">
+              <button type="submit">Salvar processo</button>
+              <button type="button" id="process-cancel" class="secondary">Cancelar edição</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel panel-form">
+          <div class="section-heading">
+            <span class="section-kicker">Cadastro</span>
+            <h2>Fluxos do inventário</h2>
+            <p>Cadastre recursos com quantidade, UEV e classificação R/N/F.</p>
+          </div>
+
+          <form id="flow-form" class="stack-form">
+            <input type="hidden" id="flow-id" />
+
+            <div class="field">
+              <label for="flow-process-id">Processo</label>
+              <select id="flow-process-id" required></select>
+            </div>
+
+            <div class="field">
+              <label for="flow-name">Nome do fluxo</label>
+              <input id="flow-name" placeholder="Ex.: Eletricidade" required />
+            </div>
+
+            <div class="field-grid two-cols">
+              <div class="field">
+                <label for="flow-amount">Quantidade</label>
+                <input id="flow-amount" type="number" step="0.0001" placeholder="0.00" required />
+              </div>
+              <div class="field">
+                <label for="flow-unit">Unidade</label>
+                <select id="flow-unit" required>
+                  <option value="J">J</option>
+                  <option value="MJ">MJ</option>
+                  <option value="kWh">kWh</option>
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                  <option value="L">L</option>
+                  <option value="m3">m³</option>
+                  <option value="$">$</option>
+                  <option value="h">h</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="field-grid two-cols">
+              <div class="field">
+                <label for="flow-resource-type">Tipo do recurso</label>
+                <select id="flow-resource-type" required>
+                  <option value="R">R - Renovável</option>
+                  <option value="N">N - Não renovável</option>
+                  <option value="F">F - Economia/Feedback</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="flow-uev">UEV (sej/unidade)</label>
+                <input id="flow-uev" type="number" step="0.0001" placeholder="0.00" required />
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="flow-notes">Observações</label>
+              <textarea id="flow-notes" placeholder="Ex.: Valor retirado da tabela UEV"></textarea>
+            </div>
+
+            <div class="actions split-actions">
+              <button type="submit">Salvar fluxo</button>
+              <button type="button" id="flow-cancel" class="secondary">Cancelar edição</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel panel-side">
+          <div class="section-heading compact-heading">
+            <span class="section-kicker">Importação</span>
+            <h2>CSV</h2>
+          </div>
+
+          <form id="csv-form" class="stack-form compact-form">
+            <div class="field file-field">
+              <label for="csv-file">Arquivo CSV</label>
+              <input type="file" id="csv-file" accept=".csv" required />
+            </div>
+            <button type="submit">Importar arquivo</button>
+          </form>
+
+          <div class="info-box">
+            <strong>Colunas esperadas no CSV</strong>
+              <p>
+               process_id, flow_name, amount, unit, resource_type, uev, notes
+              </p>
+              <p class="muted" style="margin-top:8px">
+                ID do processo, nome do fluxo, quantidade, unidade, tipo do recurso (R/N/F), UEV e observações.
+              </p>
+          </div>
+
+          <div class="info-box soft">
+            <strong>Regra aplicada</strong>
+            <p>
+              A emergia de cada fluxo é calculada por meio da expressão:
+              <strong>Emergia = Quantidade × UEV</strong>.
+              Em seguida, o sistema soma as contribuições dos fluxos e calcula os indicadores EYR, ELR e ESI.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="section-heading">
+            <span class="section-kicker">Gerenciamento</span>
+            <h2>Processos e fluxos cadastrados</h2>
+            <p>Visualize, edite e exclua os registros do sistema.</p>
+          </div>
+          <div id="process-list" class="process-grid"></div>
+        </section>
+
+        <section class="panel panel-wide">
+          <div class="section-heading">
+            <span class="section-kicker">Simulação</span>
+            <h2>Cálculo de emergia</h2>
+            <p>Selecione um processo e visualize o total calculado, os subtotais por R/N/F e os indicadores.</p>
+          </div>
+
+          <div class="calc-toolbar three-cols">
+            <div class="field grow-field no-margin">
+              <label for="calculate-process-id">Processo para cálculo</label>
+              <select id="calculate-process-id"></select>
+            </div>
+            <button id="calculate-btn" class="calculate-btn">Calcular</button>
+            <button id="download-report-btn" class="secondary calculate-btn">Baixar CSV</button>
+          </div>
+
+          <div id="calculation-result"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast"></div>
+    <script src="/static/app.js"></script>
+  </body>
+</html>
