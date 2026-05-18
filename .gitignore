@@ -183,4 +183,8 @@ cython_debug/
 emergy.db
 *.db
 *.sqlite
+# PyInstaller
+dist/
+build/
+*.spec
 *.sqlite3
