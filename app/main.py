@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
+import sqlite3
+
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -12,7 +13,6 @@ from .db import init_db
 from .schemas import FlowCreate, FlowUpdate, ProcessCreate, ProcessUpdate
 from .services import (
     NotFoundError,
-    build_process_report,
     calculate_process_emergy,
     create_flow,
     create_process,
@@ -21,26 +21,15 @@ from .services import (
     get_process,
     import_flows_from_csv,
     list_processes,
-    report_to_csv,
     update_flow,
     update_process,
 )
 
 BASE_DIR = Path(__file__).resolve().parent
-app = FastAPI(title="Emergy App APS - UEV", version="2.0.0")
+app = FastAPI(title="Emergy App APS", version="1.0.0")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-@app.get("/debug-paths")
-def debug_paths():
-    return {
-        "base_dir": str(BASE_DIR),
-        "static_dir": str(BASE_DIR / "static"),
-        "styles_path": str(BASE_DIR / "static" / "styles.css"),
-        "styles_exists": (BASE_DIR / "static" / "styles.css").exists(),
-        "templates_dir": str(BASE_DIR / "templates"),
-        "index_exists": (BASE_DIR / "templates" / "index.html").exists(),
-    }
 
 @app.on_event("startup")
 def startup_event() -> None:
@@ -124,30 +113,6 @@ def api_calculate(process_id: int):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-@app.get("/api/report/{process_id}")
-def api_report_json(process_id: int):
-    try:
-        return build_process_report(process_id)
-    except (NotFoundError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/api/report/{process_id}/csv")
-def api_report_csv(process_id: int):
-    try:
-        report = build_process_report(process_id)
-        csv_content = report_to_csv(report)
-        return PlainTextResponse(
-            content=csv_content,
-            headers={
-                "Content-Disposition": f'attachment; filename="process_{process_id}_report.csv"'
-            },
-            media_type="text/csv",
-        )
-    except (NotFoundError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
 @app.post("/api/import-csv")
 async def api_import_csv(file: UploadFile = File(...)):
     try:
@@ -156,5 +121,10 @@ async def api_import_csv(file: UploadFile = File(...)):
         return import_flows_from_csv(text)
     except UnicodeDecodeError as exc:
         raise HTTPException(status_code=400, detail="O arquivo CSV deve estar em UTF-8.") from exc
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="CSV inválido: o process_id ou source_process_id informado não existe no banco."
+        ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
